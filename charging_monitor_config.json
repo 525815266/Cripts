@@ -1,0 +1,23 @@
+{
+  "api_url": "https://jinjuli.sfjiayuan.com/api/OrderCharging/OrderChargingList",
+  "http_method": "POST",
+  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE3NTc0Njk1MzksInVzZXJpbmZvIjp7ImlkIjo1NjY5NDgsInRpbWUiOjE3NTY4NjQ3Mzl9fQ.3lq_7w2eX55rqorQ4bsT5_7uqaat2XL-ZV2DHLLeNB8",
+  "payload": {
+    "page": 1,
+    "pagenum": 10
+  },
+  "poll_seconds": 2,
+  "power_threshold_w": 40,
+  "bark_key": "tEtZkUo5EQwWCYuYcAXdMP",
+  "bark_server": "https://api.day.app",
+  "timeout_seconds": 12,
+  "user_info_url": "https://jinjuli.sfjiayuan.com/api/user/getUserInfo",
+  "show_price_tier": true,
+  "stop_url": "https://jinjuli.sfjiayuan.com/api/g/gateway/charging/stopCharging",
+  "auto_stop_enabled": true,
+  "auto_stop_minutes_below_threshold": 1,
+  "start_url": "https://jinjuli.sfjiayuan.com/api/g/gateway/charging/startCharging",
+  "bug_hour_limit": 3,
+  "bug_wait_min_sec": 120,
+  "bug_wait_max_sec": 180
+}
