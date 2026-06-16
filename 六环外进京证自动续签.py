@@ -1,0 +1,92 @@
+import sys
+import requests
+from datetime import datetime,timedelta
+
+# 配置信息（需自行填写）
+URL = "jjz.jtgl.beijing.gov.cn:1443" # 初始地址
+AUTH = "" # 访问凭证，通过抓包在请求头信息 Authorization 字段
+
+# Authorization获取请在这里获取https://jjz.jtgl.beijing.gov.cn:1443/pro/configRecordController/getConfigRecordInfo
+# 查请求头Authorization字段复制即可 然后填入上方AUTH变量
+
+
+# 地理信息（按需改动，不懂可以不改。如需改动建议通过http://jingweidu.757dy.com/自行查询自己的经纬度）
+SQDZGDJD = "116.733950" # 社区地址高德经度
+SQDZGDWD = "39.851848" # 社区地址高德纬度
+SQDZBDJD = "116.740436" # 社区地址百度经度
+SQDZBDWD = "39.857924" # 社区地址百度纬度
+XXDZ = "双拥文化公园" # 进京地址
+
+# 接口地址（无需改动）
+STATE_LIST_URL = f"https://{URL}/pro/applyRecordController/stateList" # 查询状态接口
+INSERT_APPLY_RECORD_URL = f"https://{URL}/pro/applyRecordController/insertApplyRecord" # 办理续签接口
+
+def request(url, payload={}):
+    headers = {"Authorization": AUTH, "Content-Type": "application/json"}
+    res = requests.post(url, headers=headers, json=payload)
+    data = res.json()
+    if data["code"] == 200:
+        return data
+    else:
+        print(f"请求失败，状态码: {data['code']}，错误信息: {data['msg']}")
+        sys.exit(1)
+
+def exec_renew(data, date, jjzzl="六环外"):
+    payload = {
+        "sqdzgdjd": SQDZGDJD,
+        "sqdzgdwd": SQDZGDWD,
+        "sqdzbdjd": SQDZBDJD,
+        "sqdzbdwd": SQDZBDWD,
+        "xxdz" : XXDZ,
+        "sfzj" : "1", # 是否在京
+        "zjxxdz" : XXDZ, # 在京详细地址
+        "hpzl" : data["hpzl"], # 车牌类型
+        "applyIdOld" : data["applyId"], # 续办申请id
+        "vId" : data["vId"], # 车辆识别代号
+        "jsrxm" : data["jsrxm"], # 车主姓名
+        "jszh" : data["jszh"], # 车主身份证号
+        "hphm" : data["hphm"], # 车牌号
+        "txrxx" : [],
+        "jjdq" : "010", # 进京目的地地区
+        "jjmd" : "06", # 进京目的地
+        "jjzzl" : "01" if jjzzl == "六环内" else "02", # 进京证类型
+        "jjlk" : "00606", # 进京路况
+        "jjmdmc" : "其它", # 进京目的地名称
+        "jjlkmc" : "其他道路", # 进京路况名称
+        "jjrq" : date, # 进京日期(申请生效日期)
+    }
+    return request(INSERT_APPLY_RECORD_URL, payload)
+
+def send_wechat(title, msg):
+    QLAPI.systemNotify({"title": title, "content": msg});
+
+def main():
+    state_data = request(STATE_LIST_URL)
+    data = state_data["data"]["bzclxx"][0]["ecbzxx"][0] if state_data["data"]["bzclxx"][0]["ecbzxx"] else state_data["data"]["bzclxx"][0]["bzxx"][0]
+    yxqz, blztmc = data["yxqz"], data["blztmc"]
+    today = datetime.now().strftime("%Y-%m-%d")
+    if blztmc in ["审核通过(生效中)", "审核中", "审核通过(待生效)", "已取消", "失败(审核不通过)"]:
+        days_left = (datetime.strptime(yxqz, '%Y-%m-%d') - datetime.strptime(today, '%Y-%m-%d')).days + 1
+        if (blztmc == "审核通过(生效中)" and days_left <= 1) or blztmc in ["已取消", "失败(审核不通过)"]:
+            apply_date, flag = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"), True
+        else:
+            flag = False
+    else:
+        apply_date, flag = today, True
+    if flag:
+        exec_renew(data, apply_date)
+        msg = "续签成功"
+        state_data_new = request(STATE_LIST_URL)
+        data = state_data_new['data']['bzclxx'][0]['ecbzxx'][0]
+    else:
+        msg = "无需续签"
+    yxqs, blztmc, jjzzlmc, sqsj, hphm = data['yxqs'], data['blztmc'], data["jjzzlmc"], data['sqsj'], data['hphm']
+    yxqz = data.get('yxqz') or (datetime.strptime(yxqs, "%Y-%m-%d") + timedelta(days=6)).strftime("%Y-%m-%d")
+    exec_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    title = f"进京证{msg}: {yxqs[5:]}~{yxqz[5:]}"
+    content = f"{msg}\n状态: {blztmc}\n有效期: {yxqs}至{yxqz}\n类型: {jjzzlmc}\n申请时间: {sqsj}\n执行时间: {exec_time}\n车牌号码: {hphm}"
+    print(content)
+    send_wechat(title, content)
+
+if __name__ == "__main__":
+    main()
